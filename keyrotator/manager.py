@@ -1,6 +1,7 @@
 import json
 import os
 import datetime
+import tempfile
 from pathlib import Path
 
 # Constants
@@ -19,6 +20,24 @@ def _save_config(config: dict):
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=4)
+
+
+def _atomic_write(path: Path, data: str):
+    """Write data atomically — other readers never see partial file."""
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
+    try:
+        with os.fdopen(fd, 'w') as f:
+            f.write(data)
+        os.replace(tmp, str(path))
+    except Exception:
+        os.unlink(tmp)
+        raise
+
+
+def _escape_single_quotes(val: str) -> str:
+    """Escape a string for single-quoted shell: foo'bar → 'foo'\\''bar'"""
+    return val.replace("'", "'\\''")
+
 
 def set_settings_path(path: str):
     config = _load_config()
@@ -76,16 +95,15 @@ def inject_key_into_settings(settings_path: str) -> tuple[str | None, str]:
 
     key_value = best["value"]
 
-    # Inject into apiKeyHelper as an echo shell command
-    settings["apiKeyHelper"] = f"echo '{key_value}'"
+    # Inject into apiKeyHelper as an echo shell command (escape single quotes)
+    settings["apiKeyHelper"] = f"echo '{_escape_single_quotes(key_value)}'"
 
     # Inject into env.ANTHROPIC_API_KEY
     if "env" not in settings or not isinstance(settings["env"], dict):
         settings["env"] = {}
     settings["env"]["ANTHROPIC_API_KEY"] = key_value
 
-    with open(p, 'w') as f:
-        json.dump(settings, f, indent=2)
+    _atomic_write(p, json.dumps(settings, indent=2) + "\n")
 
     return old_key_name, best["name"]
 
@@ -97,13 +115,22 @@ def _ensure_file():
 
 def load_keys():
     _ensure_file()
-    with open(KEYS_FILE, 'r') as f:
-        return json.load(f)
+    try:
+        with open(KEYS_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        # Corrupt or unreadable — back up and start fresh
+        backup = KEYS_FILE.with_suffix(".json.bak")
+        import shutil
+        shutil.copy2(KEYS_FILE, backup)
+        print(f"Warning: {KEYS_FILE} was corrupt. Backed up to {backup}. Starting fresh.",
+              file=__import__('sys').stderr)
+        save_keys({})
+        return {}
 
 def save_keys(keys):
     _ensure_file()
-    with open(KEYS_FILE, 'w') as f:
-        json.dump(keys, f, indent=4)
+    _atomic_write(KEYS_FILE, json.dumps(keys, indent=4) + "\n")
 
 def _get_current_time():
     return datetime.datetime.now(datetime.timezone.utc)

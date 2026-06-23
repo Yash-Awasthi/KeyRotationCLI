@@ -11,6 +11,7 @@ setup(
     entry_points={
         'console_scripts': [
             'keyrotator=keyrotator.cli:app',
+            'kr=keyrotator.cli:app',
         ],
     },
 )

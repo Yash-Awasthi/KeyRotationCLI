@@ -29,6 +29,8 @@ cd KeyRotationCLI
 pipx install .
 ```
 
+*Note: Once installed, you can use either the `keyrotator` command or the shorter `kr` alias (e.g., `kr status`).*
+
 ## Commands
 
 | Command | Description |
