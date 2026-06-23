@@ -28,20 +28,51 @@ def set_settings_path(path: str):
 def get_settings_path() -> str | None:
     return _load_config().get("claude_settings_path")
 
-def inject_key_into_settings(settings_path: str) -> str:
+def inject_key_into_settings(settings_path: str) -> tuple[str | None, str]:
     """Finds the best available key and injects it into Claude's settings.json.
-    Returns the key name that was injected.
+    Also finds the current key in settings.json, and if it matches a managed key,
+    marks it as exhausted.
+    Returns (old_key_name, new_key_name).
     """
     p = Path(settings_path)
     if not p.exists():
         raise FileNotFoundError(f"settings.json not found at: {settings_path}")
 
+    # Read existing settings
+    with open(p, 'r') as f:
+        settings = json.load(f)
+
+    # 1. Identify the existing key value in the settings file
+    existing_key_val = None
+    if "env" in settings and isinstance(settings["env"], dict) and "ANTHROPIC_API_KEY" in settings["env"]:
+        existing_key_val = settings["env"]["ANTHROPIC_API_KEY"]
+    elif "apiKeyHelper" in settings:
+        helper_str = settings["apiKeyHelper"]
+        if helper_str.startswith("echo '") and helper_str.endswith("'"):
+            existing_key_val = helper_str[6:-1]
+        else:
+            existing_key_val = helper_str
+
+    # 2. Find and exhaust the matched key
+    old_key_name = None
+    if existing_key_val:
+        keys = load_keys()
+        for name, data in keys.items():
+            if data.get("value") == existing_key_val:
+                old_key_name = name
+                break
+        
+        if old_key_name:
+            try:
+                exhaust_key(old_key_name)
+            except ValueError:
+                # If already exhausted or weekly limit reached, proceed anyway
+                pass
+
+    # 3. Find the best available key to inject
     best = get_available_key()
     if not best:
         raise ValueError("No available keys to inject. All keys are exhausted.")
-
-    with open(p, 'r') as f:
-        settings = json.load(f)
 
     key_value = best["value"]
 
@@ -49,14 +80,14 @@ def inject_key_into_settings(settings_path: str) -> str:
     settings["apiKeyHelper"] = f"echo '{key_value}'"
 
     # Inject into env.ANTHROPIC_API_KEY
-    if "env" not in settings:
+    if "env" not in settings or not isinstance(settings["env"], dict):
         settings["env"] = {}
     settings["env"]["ANTHROPIC_API_KEY"] = key_value
 
     with open(p, 'w') as f:
         json.dump(settings, f, indent=2)
 
-    return best["name"]
+    return old_key_name, best["name"]
 
 def _ensure_file():
     KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)

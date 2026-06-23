@@ -236,8 +236,10 @@ def rotate():
             rprint(f"[green]Path saved.[/green]")
 
     try:
-        key_name = manager.inject_key_into_settings(stored_path)
-        rprint(f"\n[green]✓ Injected key '[bold]{key_name}[/bold]' into:[/green]")
+        old_name, new_name = manager.inject_key_into_settings(stored_path)
+        if old_name:
+            rprint(f"[yellow]Marked old key '{old_name}' as exhausted.[/yellow]")
+        rprint(f"\n[green]✓ Injected key '[bold]{new_name}[/bold]' into:[/green]")
         rprint(f"  [cyan]apiKeyHelper[/cyan]")
         rprint(f"  [cyan]env.ANTHROPIC_API_KEY[/cyan]")
         rprint(f"\n[dim]{stored_path}[/dim]")
