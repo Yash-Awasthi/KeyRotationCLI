@@ -126,10 +126,10 @@ def _generate_status_table():
     table = Table(title="API Keys Status")
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("API Key", style="yellow", no_wrap=True)
-    table.add_column("Status", style="magenta", no_wrap=True)
-    table.add_column("Time Left", justify="right", style="green", no_wrap=True)
-    table.add_column("Uses Left", justify="center", style="blue", no_wrap=True)
-    table.add_column("Reset In", justify="right", style="yellow", no_wrap=True)
+    table.add_column("Stat", style="magenta", no_wrap=True)
+    table.add_column("Time", justify="right", style="green", no_wrap=True)
+    table.add_column("Uses", justify="center", style="blue", no_wrap=True)
+    table.add_column("Reset", justify="right", style="yellow", no_wrap=True)
 
     status_map = {
         "AVAILABLE": "AVAIL",
