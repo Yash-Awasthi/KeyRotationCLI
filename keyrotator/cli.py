@@ -125,11 +125,11 @@ def _generate_status_table():
 
     table = Table(title="API Keys Status")
     table.add_column("Name", style="cyan", no_wrap=True)
-    table.add_column("API Key", style="yellow")
-    table.add_column("Status", style="magenta")
-    table.add_column("Time Remaining", justify="right", style="green")
-    table.add_column("Weekly Uses Left", justify="center", style="blue")
-    table.add_column("Weekly Reset In", justify="right", style="yellow")
+    table.add_column("API Key", style="yellow", no_wrap=True)
+    table.add_column("Status", style="magenta", no_wrap=True)
+    table.add_column("Time Remaining", justify="right", style="green", no_wrap=True)
+    table.add_column("Weekly Uses Left", justify="center", style="blue", no_wrap=True)
+    table.add_column("Weekly Reset In", justify="right", style="yellow", no_wrap=True)
 
     for k in status_list:
         status_color = "green" if k["status"] == "AVAILABLE" else "red"
