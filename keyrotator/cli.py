@@ -3,6 +3,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import print as rprint
 from rich.live import Live
+from pathlib import Path
 import time
 import keyrotator.manager as manager
 
@@ -197,6 +198,54 @@ def mark(name: str = typer.Argument(..., help="Name of the key to exhaust")):
     """Alias for exhaust. Mark a key as exhausted for the current 5-hour window."""
     _exhaust_key(name)
 
+@app.command()
+def setpath(path: str = typer.Argument(None, help="Path to Claude's settings.json")):
+    """Save the path to Claude's settings.json for use with the inject command."""
+    if not path:
+        default = str(Path.home() / ".claude" / "settings.json")
+        path = typer.prompt("Path to Claude's settings.json", default=default)
+
+    p = Path(path)
+    if not p.exists():
+        rprint(f"[red]Warning: No file found at '{path}'. Path saved anyway, but injection will fail until the file exists.[/red]")
+    else:
+        rprint(f"[green]✓ File found.[/green]")
+
+    manager.set_settings_path(path)
+    rprint(f"[green]Settings path saved:[/green] [cyan]{path}[/cyan]")
+    rprint("Run [bold]keyrotator rotate[/bold] to inject the best available key.")
+
+@app.command()
+def rotate():
+    """Inject the best available API key into Claude's settings.json."""
+    stored_path = manager.get_settings_path()
+
+    if stored_path:
+        confirmed = typer.confirm(f"Inject into: {stored_path}?", default=True)
+        if not confirmed:
+            stored_path = typer.prompt("Enter the path to Claude's settings.json")
+    else:
+        rprint("[yellow]No path saved yet.[/yellow]")
+        stored_path = typer.prompt(
+            "Path to Claude's settings.json",
+            default=str(Path.home() / ".claude" / "settings.json")
+        )
+        save_it = typer.confirm(f"Save this path for future use?", default=True)
+        if save_it:
+            manager.set_settings_path(stored_path)
+            rprint(f"[green]Path saved.[/green]")
+
+    try:
+        key_name = manager.inject_key_into_settings(stored_path)
+        rprint(f"\n[green]✓ Injected key '[bold]{key_name}[/bold]' into:[/green]")
+        rprint(f"  [cyan]apiKeyHelper[/cyan]")
+        rprint(f"  [cyan]env.ANTHROPIC_API_KEY[/cyan]")
+        rprint(f"\n[dim]{stored_path}[/dim]")
+    except FileNotFoundError as e:
+        rprint(f"[red]Error: {e}[/red]")
+    except ValueError as e:
+        rprint(f"[red]Error: {e}[/red]")
+        rprint("[yellow]Run `keyrotator status` to see key availability.[/yellow]")
+
 if __name__ == "__main__":
     app()
-

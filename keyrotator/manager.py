@@ -5,8 +5,58 @@ from pathlib import Path
 
 # Constants
 KEYS_FILE = Path.home() / ".keyrotator" / "keys.json"
+CONFIG_FILE = Path.home() / ".keyrotator" / "config.json"
 DEFAULT_REFRESH_HOURS = 5.0
 DEFAULT_MAX_WEEKLY_USES = 7
+
+def _load_config() -> dict:
+    if not CONFIG_FILE.exists():
+        return {}
+    with open(CONFIG_FILE, 'r') as f:
+        return json.load(f)
+
+def _save_config(config: dict):
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=4)
+
+def set_settings_path(path: str):
+    config = _load_config()
+    config["claude_settings_path"] = path
+    _save_config(config)
+
+def get_settings_path() -> str | None:
+    return _load_config().get("claude_settings_path")
+
+def inject_key_into_settings(settings_path: str) -> str:
+    """Finds the best available key and injects it into Claude's settings.json.
+    Returns the key name that was injected.
+    """
+    p = Path(settings_path)
+    if not p.exists():
+        raise FileNotFoundError(f"settings.json not found at: {settings_path}")
+
+    best = get_available_key()
+    if not best:
+        raise ValueError("No available keys to inject. All keys are exhausted.")
+
+    with open(p, 'r') as f:
+        settings = json.load(f)
+
+    key_value = best["value"]
+
+    # Inject into apiKeyHelper as an echo shell command
+    settings["apiKeyHelper"] = f"echo '{key_value}'"
+
+    # Inject into env.ANTHROPIC_API_KEY
+    if "env" not in settings:
+        settings["env"] = {}
+    settings["env"]["ANTHROPIC_API_KEY"] = key_value
+
+    with open(p, 'w') as f:
+        json.dump(settings, f, indent=2)
+
+    return best["name"]
 
 def _ensure_file():
     KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -221,7 +271,7 @@ def get_available_key():
     if not available_keys:
         return None
         
-    # Prefer the key with the most weekly uses left
-    available_keys.sort(key=lambda x: x["weekly_uses_left"], reverse=True)
+    # Prefer the key with the least time until refresh (so it unlocks again sooner if exhausted)
+    available_keys.sort(key=lambda x: x.get("time_remaining_seconds", 0))
     return available_keys[0]
 
