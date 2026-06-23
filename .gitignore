@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Keys storage — NEVER commit your actual keys!
+~/.keyrotator/
+keys.json
+
+# IDE
+.vscode/
+.idea/
+*.swp

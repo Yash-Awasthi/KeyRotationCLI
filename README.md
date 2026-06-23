@@ -1,0 +1,65 @@
+# KeyRotator 🔑
+
+A personal CLI tool to manage and rotate multiple Claude API keys — tracking their 5-hour refresh windows and weekly usage limits so you always know which key to use next.
+
+## Why?
+
+Claude API keys (on free/limited plans) refresh every 5 hours and have a weekly cap of 7 uses. When you have multiple keys, it's a pain to mentally track which one is available, which is cooling down, and how many uses you have left this week.
+
+KeyRotator solves that with a clean terminal dashboard.
+
+## Features
+
+- 📋 **Live dashboard** — real-time countdown timers per key (`status --watch`)
+- 🔑 **Shows full API key** — copy directly from the table
+- ⏱️ **Independent timers** — 5-hour epoch and 7-day weekly cycle tracked per key
+- 📊 **Smart sorting** — available keys first, sorted by time until next epoch
+- ✋ **Manual usage tracking** — you mark a key as exhausted, nothing is assumed
+- 🔄 **Auto epoch advance** — when the 5hr window passes, key flips back to AVAILABLE automatically
+- 🛡️ **Weekly lock** — when weekly uses hit 0, key stays locked until weekly reset
+
+## Install
+
+Requires Python 3.10+ and [pipx](https://pypa.github.io/pipx/).
+
+```bash
+git clone https://github.com/yourusername/KeyRotator.git
+cd KeyRotator
+pipx install .
+```
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `keyrotator add <name> <key>` | Add a new API key with interactive timer setup |
+| `keyrotator status` | Show current status of all keys |
+| `keyrotator status --watch` | Live updating dashboard (Ctrl+C to exit) |
+| `keyrotator mark <name>` | Mark a key as exhausted (deducts 1 weekly use) |
+| `keyrotator edit <name>` | Fix/update timers for a specific key |
+| `keyrotator sync` | Bulk re-sync all keys (useful on first launch) |
+| `keyrotator remove <name>` | Remove a key |
+| `keyrotator get` | Print the best available key |
+
+## Time Format
+
+When entering times during `add`, `edit`, or `sync`:
+
+- **Hours** → `hh.mm` — e.g. `4.45` = 4 hours 45 minutes
+- **Days** → `d.hh` or `d.hh.mm` — e.g. `2.14` = 2 days 14 hours
+
+## How it works
+
+1. Each key has two independent clocks: a **5-hour epoch** and a **7-day weekly window**
+2. When you use a key in Claude Code, run `keyrotator mark <keyname>` — this decrements weekly uses by 1 and marks it exhausted for the current 5-hour window
+3. When the 5-hour epoch ends, the key automatically flips back to `AVAILABLE`
+4. When 7 days are up, weekly uses reset back to 7
+5. Keys with 0 weekly uses left stay locked (`WEEKLY_EXHAUSTED`) until their weekly reset
+
+## Data Storage
+
+Keys are stored locally at `~/.keyrotator/keys.json`. **Do not commit this file.**
+
+## ⚠️ Security Note
+
+This tool stores your raw API keys in a local JSON file. Do not push `~/.keyrotator/keys.json` to any repository.
