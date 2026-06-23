@@ -127,13 +127,20 @@ def _generate_status_table():
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("API Key", style="yellow", no_wrap=True)
     table.add_column("Status", style="magenta", no_wrap=True)
-    table.add_column("Time Remaining", justify="right", style="green", no_wrap=True)
-    table.add_column("Weekly Uses Left", justify="center", style="blue", no_wrap=True)
-    table.add_column("Weekly Reset In", justify="right", style="yellow", no_wrap=True)
+    table.add_column("Time Left", justify="right", style="green", no_wrap=True)
+    table.add_column("Uses Left", justify="center", style="blue", no_wrap=True)
+    table.add_column("Reset In", justify="right", style="yellow", no_wrap=True)
+
+    status_map = {
+        "AVAILABLE": "AVAIL",
+        "EXHAUSTED": "EX",
+        "WEEKLY_EXHAUSTED": "WK_EX"
+    }
 
     for k in status_list:
+        short_status = status_map.get(k["status"], k["status"])
         status_color = "green" if k["status"] == "AVAILABLE" else "red"
-        status_text = f"[{status_color}]{k['status']}[/{status_color}]"
+        status_text = f"[{status_color}]{short_status}[/{status_color}]"
         table.add_row(
             k["name"],
             k["value"],
