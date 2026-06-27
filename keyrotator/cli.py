@@ -111,10 +111,20 @@ def wrap_key(key: str) -> str:
     return f"{key[:mid]}\n{key[mid:]}"
 
 def _sort_key(k):
-    # Group: AVAILABLE = 0, everything else = 1
-    group = 0 if k["status"] == "AVAILABLE" else 1
-    # Within group, sort ascending by seconds remaining
-    return (group, k.get("time_remaining_seconds", 0))
+    # Level 1 — status group: AVAILABLE=0, EXHAUSTED=1, WEEKLY_EXHAUSTED=2
+    status_group = {"AVAILABLE": 0, "EXHAUSTED": 1, "WEEKLY_EXHAUSTED": 2}.get(k["status"], 3)
+
+    # Level 2 — AVAILABLE & EXHAUSTED sort by 5hr time remaining (asc)
+    #            WEEKLY_EXHAUSTED sorts by weekly reset time remaining (asc)
+    if k["status"] == "WEEKLY_EXHAUSTED":
+        level2 = k.get("weekly_reset_seconds", 0)
+    else:
+        level2 = k.get("time_remaining_seconds", 0)
+
+    # Level 3 — more uses left comes first (negate for descending)
+    level3 = -k.get("weekly_uses_left", 0)
+
+    return (status_group, level2, level3)
 
 def _generate_status_table():
     status_list = manager.get_all_status()

@@ -265,15 +265,17 @@ def get_key_status(name: str, key_data: dict):
     else:
         refresh_str = "Unknown"
         
-    # Calculate weekly reset string
+    # Calculate weekly reset string + seconds
     next_weekly_str = key_data.get("next_weekly_reset_time")
+    weekly_reset_seconds = 0
     if next_weekly_str:
         next_weekly = _parse_time(next_weekly_str)
         time_until_reset = next_weekly - now
+        weekly_reset_seconds = max(0, time_until_reset.total_seconds())
         days_left = time_until_reset.days
         hours_left, remainder = divmod(time_until_reset.seconds, 3600)
         minutes_left, _ = divmod(remainder, 60)
-        
+
         if days_left > 0:
             weekly_reset_str = f"{days_left}d {hours_left}h"
         else:
@@ -288,7 +290,8 @@ def get_key_status(name: str, key_data: dict):
             "time_remaining_seconds": time_remaining_seconds,
             "weekly_uses_left": 0,
             "can_use": False,
-            "weekly_reset_str": weekly_reset_str
+            "weekly_reset_str": weekly_reset_str,
+            "weekly_reset_seconds": weekly_reset_seconds,
         }
         
     if key_data.get("is_exhausted"):
@@ -298,7 +301,8 @@ def get_key_status(name: str, key_data: dict):
             "time_remaining_seconds": time_remaining_seconds,
             "weekly_uses_left": weekly_uses_left,
             "can_use": False,
-            "weekly_reset_str": weekly_reset_str
+            "weekly_reset_str": weekly_reset_str,
+            "weekly_reset_seconds": weekly_reset_seconds,
         }
 
     return {
@@ -307,7 +311,8 @@ def get_key_status(name: str, key_data: dict):
         "time_remaining_seconds": time_remaining_seconds,
         "weekly_uses_left": weekly_uses_left,
         "can_use": True,
-        "weekly_reset_str": weekly_reset_str
+        "weekly_reset_str": weekly_reset_str,
+        "weekly_reset_seconds": weekly_reset_seconds,
     }
 
 def get_all_status():
