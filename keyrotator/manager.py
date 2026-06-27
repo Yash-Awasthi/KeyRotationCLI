@@ -107,6 +107,33 @@ def inject_key_into_settings(settings_path: str) -> tuple[str | None, str]:
 
     return old_key_name, best["name"]
 
+
+def inject_specific_key_into_settings(settings_path: str, key_name: str):
+    """Inject a specific key (identified by its user-set name) into Claude's settings.json.
+    Does NOT auto-select, does NOT mark the previous key as exhausted.
+    Raises ValueError if key_name is not found.
+    """
+    p = Path(settings_path)
+    if not p.exists():
+        raise FileNotFoundError(f"settings.json not found at: {settings_path}")
+
+    keys = load_keys()
+    if key_name not in keys:
+        raise ValueError(f"Key '{key_name}' not found. Run `kr status` to see available names.")
+
+    key_value = keys[key_name]["value"]
+
+    with open(p, 'r') as f:
+        settings = json.load(f)
+
+    settings["apiKeyHelper"] = f"echo '{_escape_single_quotes(key_value)}'"
+
+    if "env" not in settings or not isinstance(settings["env"], dict):
+        settings["env"] = {}
+    settings["env"]["ANTHROPIC_API_KEY"] = key_value
+
+    _atomic_write(p, json.dumps(settings, indent=2) + "\n")
+
 def _ensure_file():
     KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not KEYS_FILE.exists():

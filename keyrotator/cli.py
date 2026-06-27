@@ -196,13 +196,8 @@ def _exhaust_key(name: str):
         rprint(f"[red]Error: {e}[/red]")
 
 @app.command()
-def exhaust(name: str = typer.Argument(..., help="Name of the key to exhaust")):
-    """Mark a key as exhausted for the current 5-hour window."""
-    _exhaust_key(name)
-
-@app.command()
-def mark(name: str = typer.Argument(..., help="Name of the key to exhaust")):
-    """Alias for exhaust. Mark a key as exhausted for the current 5-hour window."""
+def mark(name: str = typer.Argument(..., help="Name of the key to mark as exhausted")):
+    """Mark a key as exhausted for the current 5-hour window (deducts 1 weekly use)."""
     _exhaust_key(name)
 
 @app.command()
@@ -255,6 +250,52 @@ def rotate():
     except ValueError as e:
         rprint(f"[red]Error: {e}[/red]")
         rprint("[yellow]Run `keyrotator status` to see key availability.[/yellow]")
+
+@app.command()
+def inject(name: str = typer.Argument(..., help="Name of the key to inject (as set by you, not the key value)")):
+    """Manually inject a specific key by name into Claude's settings.json.
+
+    Unlike rotate, this does NOT auto-select or mark the previous key as exhausted.
+    Use this when you want to force a specific key into Claude's config.
+    """
+    # Verify the key name exists
+    status_list = manager.get_all_status()
+    key_data = next((k for k in status_list if k["name"] == name), None)
+
+    if not key_data:
+        rprint(f"[red]Error: No key named '{name}' found. Run `kr status` to see available names.[/red]")
+        raise typer.Exit(code=1)
+
+    # Get the settings path
+    stored_path = manager.get_settings_path()
+    if stored_path:
+        confirmed = typer.confirm(f"Inject '{name}' into: {stored_path}?", default=True)
+        if not confirmed:
+            stored_path = typer.prompt("Enter the path to Claude's settings.json")
+    else:
+        rprint("[yellow]No path saved yet.[/yellow]")
+        stored_path = typer.prompt(
+            "Path to Claude's settings.json",
+            default=str(Path.home() / ".claude" / "settings.json")
+        )
+        save_it = typer.confirm("Save this path for future use?", default=True)
+        if save_it:
+            manager.set_settings_path(stored_path)
+            rprint("[green]Path saved.[/green]")
+
+    # Inject the specified key directly — no auto-selection, no exhausting old key
+    try:
+        manager.inject_specific_key_into_settings(stored_path, name)
+        stat_color = "green" if key_data["status"] == "AVAILABLE" else "yellow"
+        rprint(f"\n[green]✓ Injected key '[bold]{name}[/bold]' into:[/green]")
+        rprint(f"  [cyan]apiKeyHelper[/cyan]")
+        rprint(f"  [cyan]env.ANTHROPIC_API_KEY[/cyan]")
+        rprint(f"  Status: [{stat_color}]{key_data['status']}[/{stat_color}] | Uses left: [blue]{key_data['weekly_uses_left']}[/blue]")
+        rprint(f"\n[dim]{stored_path}[/dim]")
+    except FileNotFoundError as e:
+        rprint(f"[red]Error: {e}[/red]")
+    except ValueError as e:
+        rprint(f"[red]Error: {e}[/red]")
 
 if __name__ == "__main__":
     app()
