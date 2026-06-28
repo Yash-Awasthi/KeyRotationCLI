@@ -131,6 +131,12 @@ def _generate_status_table():
     if not status_list:
         return None
 
+    # Identify the key currently injected in Claude's settings.json (if any)
+    current_name = None
+    settings_path = manager.get_settings_path()
+    if settings_path:
+        current_name = manager.get_current_key_name(settings_path)
+
     status_list = sorted(status_list, key=_sort_key)
 
     table = Table(title="API Keys Status")
@@ -149,15 +155,25 @@ def _generate_status_table():
 
     for k in status_list:
         short_status = status_map.get(k["status"], k["status"])
-        status_color = "green" if k["status"] == "AVAILABLE" else "red"
-        status_text = f"[{status_color}]{short_status}[/{status_color}]"
+        is_current = k["name"] == current_name
+
+        if is_current:
+            # Pure white row overrides per-column colors; no inline status color.
+            status_text = short_status
+            row_style = "bright_white"
+        else:
+            status_color = "green" if k["status"] == "AVAILABLE" else "red"
+            status_text = f"[{status_color}]{short_status}[/{status_color}]"
+            row_style = None
+
         table.add_row(
             k["name"],
             k["value"],
             status_text,
             k["time_remaining_str"],
             str(k["weekly_uses_left"]),
-            k.get("weekly_reset_str", "Unknown")
+            k.get("weekly_reset_str", "Unknown"),
+            style=row_style
         )
     return table
 
@@ -186,7 +202,7 @@ def status(watch: bool = typer.Option(False, "--watch", "-w", help="Dynamically 
 
 @app.command()
 def get():
-    """Get the next available API key with the most weekly uses remaining."""
+    """Get the next available API key (least time until its next refresh)."""
     best_key = manager.get_available_key()
     if not best_key:
         rprint("[red]No keys are currently available. Check `keyrotator status` to see when the next one unlocks.[/red]")

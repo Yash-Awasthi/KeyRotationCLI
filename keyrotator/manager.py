@@ -47,6 +47,35 @@ def set_settings_path(path: str):
 def get_settings_path() -> str | None:
     return _load_config().get("claude_settings_path")
 
+def get_current_key_name(settings_path: str) -> str | None:
+    """Read the current key from settings.json and return its name if it exists."""
+    p = Path(settings_path)
+    if not p.exists():
+        return None
+
+    try:
+        with open(p, 'r') as f:
+            settings = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+    existing_key_val = None
+    if "env" in settings and isinstance(settings["env"], dict) and "ANTHROPIC_API_KEY" in settings["env"]:
+        existing_key_val = settings["env"]["ANTHROPIC_API_KEY"]
+    elif "apiKeyHelper" in settings:
+        helper_str = settings["apiKeyHelper"]
+        if helper_str.startswith("echo '") and helper_str.endswith("'"):
+            existing_key_val = helper_str[6:-1]
+        else:
+            existing_key_val = helper_str
+
+    if existing_key_val:
+        keys = load_keys()
+        for name, data in keys.items():
+            if data.get("value") == existing_key_val:
+                return name
+    return None
+
 def inject_key_into_settings(settings_path: str) -> tuple[str | None, str]:
     """Finds the best available key and injects it into Claude's settings.json.
     Also finds the current key in settings.json, and if it matches a managed key,
@@ -61,32 +90,14 @@ def inject_key_into_settings(settings_path: str) -> tuple[str | None, str]:
     with open(p, 'r') as f:
         settings = json.load(f)
 
-    # 1. Identify the existing key value in the settings file
-    existing_key_val = None
-    if "env" in settings and isinstance(settings["env"], dict) and "ANTHROPIC_API_KEY" in settings["env"]:
-        existing_key_val = settings["env"]["ANTHROPIC_API_KEY"]
-    elif "apiKeyHelper" in settings:
-        helper_str = settings["apiKeyHelper"]
-        if helper_str.startswith("echo '") and helper_str.endswith("'"):
-            existing_key_val = helper_str[6:-1]
-        else:
-            existing_key_val = helper_str
-
-    # 2. Find and exhaust the matched key
-    old_key_name = None
-    if existing_key_val:
-        keys = load_keys()
-        for name, data in keys.items():
-            if data.get("value") == existing_key_val:
-                old_key_name = name
-                break
-        
-        if old_key_name:
-            try:
-                exhaust_key(old_key_name)
-            except ValueError:
-                # If already exhausted or weekly limit reached, proceed anyway
-                pass
+    # 1. Identify the existing key value in the settings file and exhaust it
+    old_key_name = get_current_key_name(settings_path)
+    if old_key_name:
+        try:
+            exhaust_key(old_key_name)
+        except ValueError:
+            # If already exhausted or weekly limit reached, proceed anyway
+            pass
 
     # 3. Find the best available key to inject
     best = get_available_key()
