@@ -382,19 +382,6 @@ def mark_key_weekly_exhausted(name: str):
     save_keys(keys)
     return get_key_status(name, data)
 
-def mark_key_available(name: str):
-    keys = load_keys()
-    if name not in keys:
-        raise ValueError(f"Key '{name}' not found.")
-        
-    data = keys[name]
-    data["is_exhausted"] = False
-    data["weekly_usage_count"] = 0
-    now = _get_current_time()
-    data["next_refresh_time"] = now.isoformat()
-    
-    save_keys(keys)
-    return get_key_status(name, data)
 
 def get_available_key():
     status_list = get_all_status()

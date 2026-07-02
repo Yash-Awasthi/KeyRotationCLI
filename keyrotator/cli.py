@@ -238,15 +238,6 @@ def markwk(name: str = typer.Argument(..., help="Name of the key to mark as week
     except ValueError as e:
         rprint(f"[red]Error: {e}[/red]")
 
-@app.command()
-def markav(name: str = typer.Argument(..., help="Name of the key to mark as available")):
-    """Mark a key as available (AVAIL, resets cool-down and resets weekly uses)."""
-    try:
-        new_status = manager.mark_key_available(name)
-        rprint(f"[green]Key '{name}' has been marked as available (AVAIL).[/green]")
-        rprint(f"Weekly uses remaining: [blue]{new_status['weekly_uses_left']}[/blue]")
-    except ValueError as e:
-        rprint(f"[red]Error: {e}[/red]")
 
 @app.command()
 def setpath(path: str = typer.Argument(None, help="Path to Claude's settings.json")):
