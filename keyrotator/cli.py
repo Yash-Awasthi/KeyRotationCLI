@@ -111,20 +111,16 @@ def wrap_key(key: str) -> str:
     return f"{key[:mid]}\n{key[mid:]}"
 
 def _sort_key(k):
-    # Level 1 — status group: AVAILABLE=0, EXHAUSTED=1, WEEKLY_EXHAUSTED=2
-    status_group = {"AVAILABLE": 0, "EXHAUSTED": 1, "WEEKLY_EXHAUSTED": 2}.get(k["status"], 3)
+    # Level 1: weekly reset time remaining (asc / lowest first)
+    level1 = k.get("weekly_reset_seconds", 0)
 
-    # Level 2 — AVAILABLE & EXHAUSTED sort by 5hr time remaining (asc)
-    #            WEEKLY_EXHAUSTED sorts by weekly reset time remaining (asc)
-    if k["status"] == "WEEKLY_EXHAUSTED":
-        level2 = k.get("weekly_reset_seconds", 0)
-    else:
-        level2 = k.get("time_remaining_seconds", 0)
+    # Level 2: weekly uses left (desc / highest first)
+    level2 = -k.get("weekly_uses_left", 0)
 
-    # Level 3 — more uses left comes first (negate for descending)
-    level3 = -k.get("weekly_uses_left", 0)
+    # Level 3: 5hr refresh time remaining (asc / lowest first)
+    level3 = k.get("time_remaining_seconds", 0)
 
-    return (status_group, level2, level3)
+    return (level1, level2, level3)
 
 def _generate_status_table():
     status_list = manager.get_all_status()
@@ -139,7 +135,13 @@ def _generate_status_table():
 
     status_list = sorted(status_list, key=_sort_key)
 
-    table = Table(title="API Keys Status")
+    title_str = "API Keys Status"
+    if current_name:
+        title_str += f" | Present Key: [bold cyan]{current_name}[/bold cyan]"
+    else:
+        title_str += " | Present Key: [red]None[/red]"
+
+    table = Table(title=title_str)
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("API Key", style="yellow", no_wrap=True)
     table.add_column("Stat", style="magenta", no_wrap=True)
