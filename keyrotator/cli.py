@@ -111,6 +111,9 @@ def wrap_key(key: str) -> str:
     return f"{key[:mid]}\n{key[mid:]}"
 
 def _sort_key(k):
+    # Level 0: status group (AVAILABLE=0, EXHAUSTED=1, WEEKLY_EXHAUSTED=2)
+    level0 = {"AVAILABLE": 0, "EXHAUSTED": 1, "WEEKLY_EXHAUSTED": 2}.get(k["status"], 3)
+
     # Level 1: weekly reset time remaining (asc / lowest first)
     level1 = k.get("weekly_reset_seconds", 0)
 
@@ -120,7 +123,7 @@ def _sort_key(k):
     # Level 3: 5hr refresh time remaining (asc / lowest first)
     level3 = k.get("time_remaining_seconds", 0)
 
-    return (level1, level2, level3)
+    return (level0, level1, level2, level3)
 
 def _generate_status_table():
     status_list = manager.get_all_status()
