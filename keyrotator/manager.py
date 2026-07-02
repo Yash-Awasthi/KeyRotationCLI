@@ -343,7 +343,7 @@ def get_all_status():
         
     return status_list
 
-def exhaust_key(name: str):
+def mark_key_exhausted(name: str):
     keys = load_keys()
     if name not in keys:
         raise ValueError(f"Key '{name}' not found.")
@@ -365,6 +365,37 @@ def exhaust_key(name: str):
     save_keys(keys)
     return get_key_status(name, data)
 
+# Maintain backwards compatibility alias
+exhaust_key = mark_key_exhausted
+
+def mark_key_weekly_exhausted(name: str):
+    keys = load_keys()
+    if name not in keys:
+        raise ValueError(f"Key '{name}' not found.")
+        
+    data = keys[name]
+    _sync_epochs(data)
+    
+    max_weekly_uses = data.get("max_weekly_uses", DEFAULT_MAX_WEEKLY_USES)
+    data["weekly_usage_count"] = max_weekly_uses
+    
+    save_keys(keys)
+    return get_key_status(name, data)
+
+def mark_key_available(name: str):
+    keys = load_keys()
+    if name not in keys:
+        raise ValueError(f"Key '{name}' not found.")
+        
+    data = keys[name]
+    data["is_exhausted"] = False
+    data["weekly_usage_count"] = 0
+    now = _get_current_time()
+    data["next_refresh_time"] = now.isoformat()
+    
+    save_keys(keys)
+    return get_key_status(name, data)
+
 def get_available_key():
     status_list = get_all_status()
     available_keys = [k for k in status_list if k["can_use"]]
@@ -372,7 +403,11 @@ def get_available_key():
     if not available_keys:
         return None
         
-    # Prefer the key with the least time until refresh (so it unlocks again sooner if exhausted)
-    available_keys.sort(key=lambda x: x.get("time_remaining_seconds", 0))
+    # Sort available keys to follow the table order (Level 1: weekly_reset_seconds asc, Level 2: weekly_uses_left desc, Level 3: time_remaining_seconds asc)
+    available_keys.sort(key=lambda k: (
+        k.get("weekly_reset_seconds", 0),
+        -k.get("weekly_uses_left", 0),
+        k.get("time_remaining_seconds", 0)
+    ))
     return available_keys[0]
 

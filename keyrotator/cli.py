@@ -217,19 +217,36 @@ def get():
     rprint(f"Value: [yellow]{best_key['value']}[/yellow]")
     rprint(f"Weekly uses remaining: [blue]{best_key['weekly_uses_left']}[/blue]")
 
-def _exhaust_key(name: str):
+@app.command()
+def markex(name: str = typer.Argument(..., help="Name of the key to mark as exhausted")):
+    """Mark a key as exhausted for the current 5-hour window (deducts 1 weekly use)."""
     try:
-        new_status = manager.exhaust_key(name)
-        rprint(f"[green]Key '{name}' has been marked as exhausted.[/green]")
+        new_status = manager.mark_key_exhausted(name)
+        rprint(f"[green]Key '{name}' has been marked as exhausted (EX).[/green]")
         rprint(f"It will be available again soon. Check `keyrotator status`.")
         rprint(f"Weekly uses remaining: [blue]{new_status['weekly_uses_left']}[/blue]")
     except ValueError as e:
         rprint(f"[red]Error: {e}[/red]")
 
 @app.command()
-def mark(name: str = typer.Argument(..., help="Name of the key to mark as exhausted")):
-    """Mark a key as exhausted for the current 5-hour window (deducts 1 weekly use)."""
-    _exhaust_key(name)
+def markwk(name: str = typer.Argument(..., help="Name of the key to mark as weekly exhausted")):
+    """Mark a key as weekly exhausted (WK_EX, weekly uses left set to 0)."""
+    try:
+        new_status = manager.mark_key_weekly_exhausted(name)
+        rprint(f"[green]Key '{name}' has been marked as weekly exhausted (WK_EX).[/green]")
+        rprint(f"Weekly uses remaining: [blue]{new_status['weekly_uses_left']}[/blue]")
+    except ValueError as e:
+        rprint(f"[red]Error: {e}[/red]")
+
+@app.command()
+def markav(name: str = typer.Argument(..., help="Name of the key to mark as available")):
+    """Mark a key as available (AVAIL, resets cool-down and resets weekly uses)."""
+    try:
+        new_status = manager.mark_key_available(name)
+        rprint(f"[green]Key '{name}' has been marked as available (AVAIL).[/green]")
+        rprint(f"Weekly uses remaining: [blue]{new_status['weekly_uses_left']}[/blue]")
+    except ValueError as e:
+        rprint(f"[red]Error: {e}[/red]")
 
 @app.command()
 def setpath(path: str = typer.Argument(None, help="Path to Claude's settings.json")):
